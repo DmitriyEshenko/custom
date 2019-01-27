@@ -1,0 +1,13 @@
+diff --git a/accel-pppd/ctrl/ipoe/ipoe.c b/accel-pppd/ctrl/ipoe/ipoe.c
+index 6fd850d..21e6ac1 100644
+--- a/accel-pppd/ctrl/ipoe/ipoe.c
++++ b/accel-pppd/ctrl/ipoe/ipoe.c
+@@ -958,7 +958,7 @@ static void __ipoe_session_activate(struct ipoe_session *ses)
+ 		ses->ipv4.addr = ses->siaddr;
+ 	}
+ 
+-	ses->ses.ipv4->mask = serv->opt_ip_unnumbered ? 32 : ses->mask;
++	//ses->ses.ipv4->mask = serv->opt_ip_unnumbered ? 32 : ses->mask;
+ 
+ 	if (ses->ifindex != -1 || serv->opt_ifcfg)
+ 		ses->ctrl.dont_ifcfg = 0;
