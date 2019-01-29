@@ -1,0 +1,44 @@
+diff --git a/accel-pppd/ctrl/ipoe/dhcpv4.c b/accel-pppd/ctrl/ipoe/dhcpv4.c
+index 8a395ea..619a7e9 100644
+--- a/accel-pppd/ctrl/ipoe/dhcpv4.c
++++ b/accel-pppd/ctrl/ipoe/dhcpv4.c
+@@ -739,13 +739,26 @@ int dhcpv4_send_reply(int msg_type, struct dhcpv4_serv *serv, struct dhcpv4_pack
+        if (dhcpv4_packet_add_opt(pack, 1, &val, 4))
+                goto out_err;
+ 
++       int dns_flag_1 = 0;
++        int dns_flag_2 = 0;
+        if (relay) {
+                list_for_each_entry(opt, &relay->options, entry) {
+                        if (opt->type == 53 || opt->type == 54 || opt->type == 51 || opt->type == 58 || opt->type == 1 || (opt->type == 3 && router))
+                                continue;
+-                       if (opt->type == 6)
+-                               dns_avail = 1;
+-                       if (dhcpv4_packet_add_opt(pack, opt->type, opt->data, opt->len))
++                        if (opt->type == 6){
++                                dns_avail = 1;
++                                if(!dns_flag_1){
++                                        dns_flag_1 = 1;
++                                        dns.dns1 = *(uint32_t *)opt->data;
++                                }
++                                else if (!dns_flag_2){
++                                        dns_flag_2 = 1;
++                                        dns.dns2 = *(uint32_t *)opt->data;
++                                        if (dhcpv4_packet_add_opt(pack, 6, &dns, 8))
++                                                goto out_err;
++                                }
++                        }
++                       else if (dhcpv4_packet_add_opt(pack, opt->type, opt->data, opt->len))
+                                goto out_err;
+                }
+        }
+@@ -761,6 +774,10 @@ int dhcpv4_send_reply(int msg_type, struct dhcpv4_serv *serv, struct dhcpv4_pack
+                                goto out_err;
+                }
+        }
++        else if(dns_avail && !dns_flag_2){
++                if (dhcpv4_packet_add_opt(pack, 6, &dns.dns1, 4))
++                                goto out_err;
++        }
+ 
+        *pack->ptr++ = 255;
