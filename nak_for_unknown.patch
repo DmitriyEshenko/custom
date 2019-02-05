@@ -1,0 +1,37 @@
+diff --git a/accel-pppd/ctrl/ipoe/ipoe.c b/accel-pppd/ctrl/ipoe/ipoe.c
+index b8082a6..e11dada 100644
+--- a/accel-pppd/ctrl/ipoe/ipoe.c
++++ b/accel-pppd/ctrl/ipoe/ipoe.c
+@@ -116,6 +116,7 @@ static int conf_ifcfg = 1;
+ static int conf_nat;
+ static int conf_arp;
+ static int conf_ipv6;
++static int conf_nak_for_unknown;
+ static uint32_t conf_src;
+ static const char *conf_ip_pool;
+ static const char *conf_l4_redirect_pool;
+@@ -1807,6 +1808,11 @@ static void __ipoe_recv_dhcpv4(struct dhcpv4_serv *dhcpv4, struct dhcpv4_packet
+ 				log_debug("%s: recv ", serv->ifname);
+ 				dhcpv4_print_packet(pack, 0, log_debug);
+ 			}
++			 if(conf_nak_for_unknown){
++                               log_debug("%s: unknown session request detected\n", serv->ifname);
++                               dhcpv4_send_nak(dhcpv4, pack);
++                               goto out;
++                       }
+ 
+ 			if (pack->src_addr) {
+ 				dhcpv4_send_nak(dhcpv4, pack);
+@@ -3925,6 +3931,12 @@ static void load_config(void)
+ 	else
+ 		conf_weight = 0;
+ 
++	opt = conf_get_opt("ipoe", "nak-for-unknown");
++	if (opt)
++                conf_nak_for_unknown = atoi(opt);
++        else
++                conf_nak_for_unknown = 0;
++
+ #ifdef RADIUS
+ 	if (triton_module_loaded("radius"))
+ 		load_radius_attrs();
