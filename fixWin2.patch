@@ -1,0 +1,40 @@
+diff --git a/accel-pppd/ctrl/ipoe/ipoe.c b/accel-pppd/ctrl/ipoe/ipoe.c
+index b8082a6..0bb63af 100644
+--- a/accel-pppd/ctrl/ipoe/ipoe.c
++++ b/accel-pppd/ctrl/ipoe/ipoe.c
+@@ -116,6 +116,7 @@ static int conf_ifcfg = 1;
+ static int conf_nat;
+ static int conf_arp;
+ static int conf_ipv6;
++static int conf_check_time_old_request;
+ static uint32_t conf_src;
+ static const char *conf_ip_pool;
+ static const char *conf_l4_redirect_pool;
+@@ -1808,6 +1809,14 @@ static void __ipoe_recv_dhcpv4(struct dhcpv4_serv *dhcpv4, struct dhcpv4_packet
+ 				dhcpv4_print_packet(pack, 0, log_debug);
+ 			}
+ 
++			if(conf_check_time_old_request){
++				if(pack->hdr->sec >= conf_check_time_old_request){
++					log_debug("%s: old request detected\n", serv->ifname);
++					dhcpv4_send_nak(dhcpv4, pack);
++					goto out;
++				}
++			}
++
+ 			if (pack->src_addr) {
+ 				dhcpv4_send_nak(dhcpv4, pack);
+ 				goto out;
+@@ -3925,6 +3934,12 @@ static void load_config(void)
+ 	else
+ 		conf_weight = 0;
+ 
++	opt = conf_get_opt("ipoe", "check-time-old-request");
++	if (opt)
++		conf_check_time_old_request = atoi(opt);
++	else
++		conf_check_time_old_request = 0;
++
+ #ifdef RADIUS
+ 	if (triton_module_loaded("radius"))
+ 		load_radius_attrs();
