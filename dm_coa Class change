@@ -3,11 +3,11 @@ index ea9743d..2393d53 100644
 --- a/accel-pppd/radius/dm_coa.c
 +++ b/accel-pppd/radius/dm_coa.c
 @@ -179,7 +179,7 @@ static void coa_request(struct radius_pd_t *rpd)
-                        if (prev_class)
-                                rad_packet_change_octets(rpd->acct_req->pack, NULL, "Class", rpd->attr_class, rpd->attr_class_len);
-                        else
--                               rad_packet_add_octets(rpd->acct_req->pack, NULL, "Class", rpd->attr_class, rpd->attr_class_len);
-+                               rad_packet_change_octets(rpd->acct_req->pack, NULL, "Class", rpd->attr_class, rpd->attr_class_len);
-                }
+ 			if (prev_class)
+ 				rad_packet_change_octets(rpd->acct_req->pack, NULL, "Class", rpd->attr_class, rpd->attr_class_len);
+ 			else
+-				rad_packet_add_octets(rpd->acct_req->pack, NULL, "Class", rpd->attr_class, rpd->attr_class_len);
++				rad_packet_change_octets(rpd->acct_req->pack, NULL, "Class", rpd->attr_class, rpd->attr_class_len);
+ 		}
  
-                attr = rad_packet_find_attr(rpd->dm_coa_req, NULL, "Session-Timeout");
+ 		attr = rad_packet_find_attr(rpd->dm_coa_req, NULL, "Session-Timeout");
