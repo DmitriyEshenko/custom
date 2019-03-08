@@ -1,0 +1,127 @@
+diff --git a/accel-pppd/accel-ppp.conf b/accel-pppd/accel-ppp.conf
+index 929402b..daf87bf 100644
+--- a/accel-pppd/accel-ppp.conf
++++ b/accel-pppd/accel-ppp.conf
+@@ -196,6 +196,8 @@ verbose=1
+ #acct-timeout=120
+ #acct-delay-time=0
+ #acct-on=0
++#acct-interim-interval=0
++#acct-interim-jitter=0
+ #attr-tunnel-type=My-Tunnel-Type
+ 
+ [client-ip-range]
+diff --git a/accel-pppd/radius/acct.c b/accel-pppd/radius/acct.c
+index e4daedb..8f6a8fd 100644
+--- a/accel-pppd/radius/acct.c
++++ b/accel-pppd/radius/acct.c
+@@ -18,6 +18,10 @@
+ 
+ #include "memdebug.h"
+ 
++#ifndef max
++#define max(x,y) ((x) > (y) ? (x) : (y))
++#endif
++
+ #define INTERIM_SAFE_TIME 10
+ 
+ static int req_set_RA(struct rad_req_t *req, const char *secret)
+@@ -187,6 +191,11 @@ static void rad_acct_interim_update(struct triton_timer_t *t)
+ 	if (rad_req_send(rpd->acct_req) && conf_acct_timeout) {
+ 		log_ppp_warn("radius:acct: no servers available, terminating session...\n");
+ 		ap_session_terminate(rpd->ses, TERM_NAS_ERROR, 0);
++	} else if (rpd->acct_interim_jitter) {
++		t->period = max(rpd->acct_interim_interval -
++					rpd->acct_interim_jitter/2, INTERIM_SAFE_TIME) * 1000;
++		t->period += rpd->acct_interim_jitter * random() * 1000 / RAND_MAX;
++		triton_timer_mod(t, 0);
+ 	}
+ }
+ 
+@@ -249,7 +258,9 @@ static void rad_acct_start_recv(struct rad_req_t *req)
+ 
+ 		rad_packet_change_val(req->pack, NULL, "Acct-Status-Type", "Interim-Update");
+ 		rpd->acct_interim_timer.expire = rad_acct_interim_update;
+-		rpd->acct_interim_timer.period = rpd->acct_interim_interval * 1000;
++		rpd->acct_interim_timer.period = max(rpd->acct_interim_interval -
++					rpd->acct_interim_jitter/2, INTERIM_SAFE_TIME) * 1000;
++		rpd->acct_interim_timer.period += rpd->acct_interim_jitter * random() * 1000 / RAND_MAX;
+ 		triton_timer_add(rpd->ses->ctrl->ctx, &rpd->acct_interim_timer, 0);
+ 
+ 		req->timeout.expire = rad_acct_timeout;
+diff --git a/accel-pppd/radius/backup.c b/accel-pppd/radius/backup.c
+index 46041d7..ea2bca9 100644
+--- a/accel-pppd/radius/backup.c
++++ b/accel-pppd/radius/backup.c
+@@ -43,6 +43,7 @@ static int session_save(struct ap_session *ses, struct backup_mod *m)
+ 	idle_timeout = rpd->idle_timeout.period / 1000;
+ 
+ 	add_tag(RAD_TAG_INTERIM_INTERVAL, &rpd->acct_interim_interval, 4);
++	add_tag(RAD_TAG_INTERIM_JITTER, &rpd->acct_interim_jitter, 4);
+ 
+ 	if (rpd->session_timeout.tpd)
+ 		add_tag(RAD_TAG_SESSION_TIMEOUT, &session_timeout, 8);
+@@ -118,6 +119,9 @@ void radius_restore_session(struct ap_session *ses, struct radius_pd_t *rpd)
+ 			case RAD_TAG_INTERIM_INTERVAL:
+ 				rpd->acct_interim_interval = *(uint32_t *)tag->data;
+ 				break;
++			case RAD_TAG_INTERIM_JITTER:
++				rpd->acct_interim_jitter = *(uint32_t *)tag->data;
++				break;
+ 			case RAD_TAG_SESSION_TIMEOUT:
+ 				rpd->session_timeout.expire_tv.tv_sec = *(uint64_t *)tag->data - ses->start_time;
+ 				break;
+diff --git a/accel-pppd/radius/radius.c b/accel-pppd/radius/radius.c
+index d910c9c..806c923 100644
+--- a/accel-pppd/radius/radius.c
++++ b/accel-pppd/radius/radius.c
+@@ -41,6 +41,7 @@ char *conf_dm_coa_secret;
+ int conf_sid_in_auth;
+ int conf_require_nas_ident;
+ int conf_acct_interim_interval;
++int conf_acct_interim_jitter;
+ 
+ int conf_accounting;
+ int conf_fail_time;
+@@ -277,6 +278,7 @@ int rad_proc_attrs(struct rad_req_t *req)
+ 	struct radius_pd_t *rpd = req->rpd;
+ 
+ 	req->rpd->acct_interim_interval = conf_acct_interim_interval;
++	req->rpd->acct_interim_jitter = conf_acct_interim_jitter;
+ 
+ 	list_for_each_entry(attr, &req->reply->attrs, entry) {
+ 		if (attr->vendor && attr->vendor->id == Vendor_Microsoft) {
+@@ -958,9 +960,13 @@ static int load_config(void)
+ 		conf_require_nas_ident = atoi(opt);
+ 
+ 	opt = conf_get_opt("radius", "acct-interim-interval");
+-	if (opt && atoi(opt) > 0)
++	if (opt && atoi(opt) >= 0)
+ 		conf_acct_interim_interval = atoi(opt);
+ 
++	opt = conf_get_opt("radius", "acct-interim-jitter");
++	if (opt && atoi(opt) >= 0)
++		conf_acct_interim_jitter = atoi(opt);
++
+ 	opt = conf_get_opt("radius", "acct-delay-time");
+ 	if (opt)
+ 		conf_acct_delay_time = atoi(opt);
+diff --git a/accel-pppd/radius/radius_p.h b/accel-pppd/radius/radius_p.h
+index db8d277..e7a75a8 100644
+--- a/accel-pppd/radius/radius_p.h
++++ b/accel-pppd/radius/radius_p.h
+@@ -66,6 +66,7 @@ struct radius_pd_t {
+ 	struct ipv6db_item_t ipv6_addr;
+ 	struct ipv6db_prefix_t ipv6_dp;
+ 	int acct_interim_interval;
++	int acct_interim_jitter;
+ 
+ 	uint8_t *attr_class;
+ 	int attr_class_len;
+@@ -184,6 +185,7 @@ extern int conf_require_nas_ident;
+ extern in_addr_t conf_dm_coa_server;
+ extern int conf_dm_coa_port;
+ extern int conf_acct_interim_interval;
++extern int conf_acct_interim_jitter;
+ extern int conf_accounting;
+ extern const char *conf_attr_tunnel_type;
