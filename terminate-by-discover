@@ -37,7 +37,7 @@ index b8082a6..50bd932 100644
  	else
  		conf_check_mac_change = 1;
  
-+	opt = conf_get_opt("ipoe", "terminate-by-discover=1");
++	opt = conf_get_opt("ipoe", "terminate-by-discover");
 +	if (opt)
 +		conf_terminate_by_discover = atoi(opt);
 +	else
