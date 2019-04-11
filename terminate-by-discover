@@ -1,0 +1,48 @@
+diff --git a/accel-pppd/ctrl/ipoe/ipoe.c b/accel-pppd/ctrl/ipoe/ipoe.c
+index b8082a6..50bd932 100644
+--- a/accel-pppd/ctrl/ipoe/ipoe.c
++++ b/accel-pppd/ctrl/ipoe/ipoe.c
+@@ -169,6 +169,7 @@ static LIST_HEAD(conf_offer_delay);
+ static const char *conf_vlan_name;
+ static int conf_ip_unnumbered;
+ static int conf_check_mac_change;
++static int conf_terminate_by_discover;
+ static int conf_soft_terminate;
+ static int conf_calling_sid = SID_MAC;
+ 
+@@ -1777,6 +1778,13 @@ static void __ipoe_recv_dhcpv4(struct dhcpv4_serv *dhcpv4, struct dhcpv4_packet
+ 				goto out;
+ 			}
+ 
++			if (conf_terminate_by_discover) {
++				log_debug("ipoe: terminate %s by new Discover\n", ses->ses.ifname);
++                                dhcpv4_packet_ref(pack);
++				triton_context_call(&ses->ctx, (triton_event_func)__terminate, &ses->ses);
++                                goto out;
++			}
++
+ 			if (conf_check_mac_change) {
+ 				if ((opt82_ses && ses != opt82_ses) || (!opt82_ses && pack->relay_agent)) {
+ 					dhcpv4_packet_ref(pack);
+@@ -2322,7 +2330,7 @@ static void ev_radius_coa(struct ev_radius_t *ev)
+ 		return;
+ 
+ 	l4_redirect = ses->l4_redirect;
+-
++	
+ 	list_for_each_entry(attr, &ev->request->attrs, entry) {
+ 		int vendor_id = attr->vendor ? attr->vendor->id : 0;
+ 
+@@ -3908,6 +3916,12 @@ static void load_config(void)
+ 	else
+ 		conf_check_mac_change = 1;
+ 
++	opt = conf_get_opt("ipoe", "terminate-by-discover=1");
++	if (opt)
++		conf_terminate_by_discover = atoi(opt);
++	else
++		conf_terminate_by_discover = 0;
++
+ 	opt = conf_get_opt("ipoe", "calling-sid");
+ 	if (opt) {
+ 		if (!strcmp(opt, "mac"))
