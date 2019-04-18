@@ -1,0 +1,13 @@
+diff --git a/accel-pppd/shaper/shaper.c b/accel-pppd/shaper/shaper.c
+index 304a129..184f595 100644
+--- a/accel-pppd/shaper/shaper.c
++++ b/accel-pppd/shaper/shaper.c
+@@ -630,7 +630,7 @@ static int shaper_change_exec(const char *cmd, char * const *f, int f_cnt, void
+ 
+        pthread_rwlock_rdlock(&shaper_lock);
+        list_for_each_entry(pd, &shaper_list, entry) {
+-               if (all || !strcmp(f[2], pd->ses->ifname)) {
++       if (all || !strcmp(f[2], pd->ses->ifname) || !strcmp(f[2], pd->ses->username)){
+                        if (temp) {
+                                pd->temp_down_speed = down_speed;
+                                pd->temp_up_speed = up_speed;
