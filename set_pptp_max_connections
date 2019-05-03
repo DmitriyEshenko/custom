@@ -14,7 +14,7 @@ index 7ca4b77..560731f 100644
  			continue;
  		}
  
-+		if (stat_starting > conf_max_start_sessions){
++		if (conf_max_start_sessions > 0 && conf_max_start_sessions < stat_starting){
 +                         log_warn("pptp: starting > %d, droping connection...\n", conf_max_start_sessions);
 +                         close(sock);
 +                         continue;
