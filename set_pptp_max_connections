@@ -1,0 +1,38 @@
+diff --git a/accel-pppd/ctrl/pptp/pptp.c b/accel-pppd/ctrl/pptp/pptp.c
+index 7ca4b77..560731f 100644
+--- a/accel-pppd/ctrl/pptp/pptp.c
++++ b/accel-pppd/ctrl/pptp/pptp.c
+@@ -61,6 +61,7 @@ static int conf_echo_interval = 0;
+ static int conf_echo_failure = 3;
+ static int conf_verbose = 0;
+ static int conf_mppe = MPPE_UNSET;
++static int conf_max_start_sessions = 0;
+ static const char *conf_ip_pool;
+ static const char *conf_ifname;
+ 
+@@ -673,6 +674,12 @@ static int pptp_connect(struct triton_md_handler_t *h)
+ 			continue;
+ 		}
+ 
++		if (stat_starting > conf_max_start_sessions){
++                         log_warn("pptp: starting > %d, droping connection...\n", conf_max_start_sessions);
++                         close(sock);
++                         continue;
++                }
++
+ 		conn = mempool_alloc(conn_pool);
+ 		memset(conn, 0, sizeof(*conn));
+ 		conn->hnd.fd = sock;
+@@ -771,6 +778,12 @@ static void load_config(void)
+ 	if (opt && atoi(opt) >= 0)
+ 		conf_verbose = atoi(opt) > 0;
+ 
++	opt = conf_get_opt("pptp", "max-start-sessions");
++        if (opt && atoi(opt) > 0)
++                conf_max_start_sessions = atoi(opt);
++	else
++		conf_max_start_sessions = 0;
++
+ 	opt = conf_get_opt("pptp", "ppp-max-mtu");
+ 	if (opt && atoi(opt) > 0)
+ 		conf_ppp_max_mtu = atoi(opt);
