@@ -1,0 +1,80 @@
+diff --git a/accel-pppd/ctrl/ipoe/ipoe.c b/accel-pppd/ctrl/ipoe/ipoe.c
+index b8082a6..9fec13b 100644
+--- a/accel-pppd/ctrl/ipoe/ipoe.c
++++ b/accel-pppd/ctrl/ipoe/ipoe.c
+@@ -586,6 +586,7 @@ static void auth_result(struct ipoe_session *ses, int r)
+ 	if (r == PWDB_DENIED) {
+ 		if (conf_l4_redirect_on_reject && ses->dhcpv4_request) {
+ 			ses->l4_redirect = 1;
++			ses->ses.l4_redirect = 1;
+ 			if (conf_l4_redirect_pool) {
+ 				if (ses->ses.ipv4_pool_name)
+ 					_free(ses->ses.ipv4_pool_name);
+@@ -963,7 +964,7 @@ static void __ipoe_session_activate(struct ipoe_session *ses)
+ 	if (ses->ifindex != -1 || serv->opt_ifcfg)
+ 		ses->ctrl.dont_ifcfg = 0;
+ 
+-	if (ses->serv->opt_mode == MODE_L2 && ses->serv->opt_ipv6 && sock6_fd != -1) {
++	if (ses->serv->opt_mode == MODE_L2 && ses->serv->opt_ipv6 && sock6_fd != -1 && !ses->l4_redirect) {
+ 		ses->ses.ipv6 = ipdb_get_ipv6(&ses->ses);
+ 		if (!ses->ses.ipv6)
+ 			log_ppp_warn("ipoe: no free IPv6 address\n");
+@@ -1646,7 +1647,7 @@ static int ipoe_serv_request_check(struct ipoe_serv *serv, uint32_t xid)
+ 			list_del(&r->entry);
+ 			mempool_free(r);
+ 		} else if (r->xid == xid) {
+-			if (++r->cnt == conf_max_request) {
++			if (++r->cnt >= conf_max_request) {
+ 				list_del(&r->entry);
+ 				mempool_free(r);
+ 				return 1;
+@@ -1660,7 +1661,7 @@ static int ipoe_serv_request_check(struct ipoe_serv *serv, uint32_t xid)
+ 	r = mempool_alloc(req_item_pool);
+ 	r->xid = xid;
+ 	r->expire = ts.tv_sec + 30;
+-	r->cnt = 0;
++	r->cnt = 1;
+ 	list_add_tail(&r->entry, &serv->req_list);
+ 
+ 	return 0;
+@@ -1825,7 +1826,12 @@ static void __ipoe_recv_dhcpv4(struct dhcpv4_serv *dhcpv4, struct dhcpv4_packet
+ 			else if (opt82_ses) {
+ 				dhcpv4_packet_ref(pack);
+ 				triton_context_call(&opt82_ses->ctx, (triton_event_func)mac_change_detected, pack);
+-			} else if (ipoe_serv_request_check(serv, pack->hdr->xid))
++			}
++
++			if (ap_shutdown)
++				goto out;
++
++			if (ipoe_serv_request_check(serv, pack->hdr->xid))
+ 				dhcpv4_send_nak(dhcpv4, pack);
+ 		} else {
+ 			if (ses->terminate) {
+diff --git a/accel-pppd/include/ap_session.h b/accel-pppd/include/ap_session.h
+index b2d0532..a2cff53 100644
+--- a/accel-pppd/include/ap_session.h
++++ b/accel-pppd/include/ap_session.h
+@@ -100,6 +100,7 @@ struct ap_session
+ 	int terminated:1;
+ 	int down:1;
+ 	int terminate_cause;
++	int l4_redirect:1;
+ 
+ 	struct list_head pd_list;
+ 
+diff --git a/accel-pppd/ipv6/dhcpv6.c b/accel-pppd/ipv6/dhcpv6.c
+index be24858..5b2579d 100644
+--- a/accel-pppd/ipv6/dhcpv6.c
++++ b/accel-pppd/ipv6/dhcpv6.c
+@@ -72,6 +72,10 @@ static void ev_ses_started(struct ap_session *ses)
+ 	if (!ses->ipv6 || list_empty(&ses->ipv6->addr_list))
+ 		return;
+ 
++	if(ses->l4_redirect){
++		log_ppp_info2("dhcpv6: deny for l4-redirect\n");
++		return;
++	}
+ 	a = list_entry(ses->ipv6->addr_list.next, typeof(*a), entry);
+ 	if (a->prefix_len == 0 || IN6_IS_ADDR_UNSPECIFIED(&a->addr))
+ 		return;
