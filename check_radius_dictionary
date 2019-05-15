@@ -1,0 +1,16 @@
+diff --git a/accel-pppd/radius/dict.c b/accel-pppd/radius/dict.c
+index fa75dd9..14e5c51 100644
+--- a/accel-pppd/radius/dict.c
++++ b/accel-pppd/radius/dict.c
+@@ -92,6 +92,11 @@ static int dict_load(const char *fname)
+ 			continue;
+ 		r = split(buf, ptr);
+ 
++		if(!r){
++			log_emerg("radius: wrong dictionary line - %s\n", buf);
++			continue;
++		}
++
+ 		if (*ptr[r - 1] == '#')
+ 			r--;
+ 
