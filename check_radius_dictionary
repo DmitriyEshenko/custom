@@ -8,7 +8,7 @@ index fa75dd9..14e5c51 100644
  
 +		if(!r){
 +			log_emerg("radius: wrong dictionary line - %s\n", buf);
-+			continue;
++			return -1;
 +		}
 +
  		if (*ptr[r - 1] == '#')
