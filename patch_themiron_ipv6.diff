@@ -1,0 +1,39 @@
+diff --git a/accel-pppd/ipv6/dhcpv6.c b/accel-pppd/ipv6/dhcpv6.c
+index be24858..95a0594 100644
+--- a/accel-pppd/ipv6/dhcpv6.c
++++ b/accel-pppd/ipv6/dhcpv6.c
+@@ -629,7 +629,8 @@ static void dhcpv6_recv_solicit(struct dhcpv6_packet *req)
+ 		if (!pd->clientid) {
+ 			pd->clientid = _malloc(sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len));
+ 			memcpy(pd->clientid, req->clientid, sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len));
+-		} else if (pd->clientid->hdr.len != req->clientid->hdr.len || memcmp(pd->clientid, req->clientid, sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len))) {
++		} else if (pd->clientid->hdr.len != req->clientid->hdr.len ||
++			memcmp(pd->clientid, req->clientid, sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len))) {
+ 			log_ppp_error("dhcpv6: unmatched Client-ID option\n");
+ 			return;
+ 		}
+@@ -655,7 +656,8 @@ static void dhcpv6_recv_request(struct dhcpv6_packet *req)
+ 	if (!pd->clientid) {
+ 		pd->clientid = _malloc(sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len));
+ 		memcpy(pd->clientid, req->clientid, sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len));
+-	} else if (pd->clientid->hdr.len != req->clientid->hdr.len || memcmp(pd->clientid, req->clientid, sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len))) {
++	} else if (pd->clientid->hdr.len != req->clientid->hdr.len ||
++		memcmp(pd->clientid, req->clientid, sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len))) {
+ 		log_ppp_error("dhcpv6: unmatched Client-ID option\n");
+ 		return;
+ 	}
+@@ -725,9 +727,11 @@ static void dhcpv6_recv_rebind(struct dhcpv6_packet *req)
+ 		return;
+ 	}
+ 
+-	if (!pd->clientid)
+-		return;
+-	else if (pd->clientid->hdr.len != req->clientid->hdr.len || memcmp(pd->clientid, req->clientid, sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len))) {
++	if (!pd->clientid) {
++		pd->clientid = _malloc(sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len));
++		memcpy(pd->clientid, req->clientid, sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len));
++	} else if (pd->clientid->hdr.len != req->clientid->hdr.len ||
++		memcmp(pd->clientid, req->clientid, sizeof(struct dhcpv6_opt_hdr) + ntohs(req->clientid->hdr.len))) {
+ 		log_ppp_error("dhcpv6: unmatched Client-ID option\n");
+ 		return;
+ 	}
