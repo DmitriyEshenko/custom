@@ -8,7 +8,7 @@ index 12b5400..62d21e8 100644
  
 -	conn->service_name = _malloc(sizeof(*service_name) + ntohs(service_name->tag_len));
 -	memcpy(conn->service_name, service_name, sizeof(*service_name) + ntohs(service_name->tag_len));
-+	if(service_name){
++	if(service_name) {
 +		conn->service_name = _malloc(sizeof(*service_name) + ntohs(service_name->tag_len));
 +		memcpy(conn->service_name, service_name, sizeof(*service_name) + ntohs(service_name->tag_len));
 +	}
