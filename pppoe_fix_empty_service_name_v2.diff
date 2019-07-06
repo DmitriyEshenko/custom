@@ -1,0 +1,37 @@
+diff --git a/accel-pppd/ctrl/pppoe/pppoe.c b/accel-pppd/ctrl/pppoe/pppoe.c
+index 12b5400..3244388 100644
+--- a/accel-pppd/ctrl/pppoe/pppoe.c
++++ b/accel-pppd/ctrl/pppoe/pppoe.c
+@@ -331,8 +331,10 @@ static struct pppoe_conn_t *allocate_channel(struct pppoe_serv_t *serv, const ui
+ 		memcpy(conn->tr101, tr101, sizeof(*tr101) + ntohs(tr101->tag_len));
+ 	}
+ 
+-	conn->service_name = _malloc(sizeof(*service_name) + ntohs(service_name->tag_len));
+-	memcpy(conn->service_name, service_name, sizeof(*service_name) + ntohs(service_name->tag_len));
++	if(service_name) {
++		conn->service_name = _malloc(sizeof(*service_name) + ntohs(service_name->tag_len));
++		memcpy(conn->service_name, service_name, sizeof(*service_name) + ntohs(service_name->tag_len));
++	}
+ 
+ 	memcpy(conn->cookie, cookie, COOKIE_LENGTH - 4);
+ 
+@@ -826,7 +828,8 @@ static void pppoe_send_PADS(struct pppoe_conn_t *conn)
+ 
+ 	add_tag(pack, TAG_AC_NAME, (uint8_t *)conf_ac_name, strlen(conf_ac_name));
+ 
+-	add_tag2(pack, conn->service_name);
++	if (conn->service_name)
++		add_tag2(pack, conn->service_name);
+ 
+ 	if (conn->host_uniq)
+ 		add_tag2(pack, conn->host_uniq);
+@@ -854,7 +857,8 @@ static void pppoe_send_PADT(struct pppoe_conn_t *conn)
+ 
+ 	add_tag(pack, TAG_AC_NAME, (uint8_t *)conf_ac_name, strlen(conf_ac_name));
+ 
+-	add_tag2(pack, conn->service_name);
++	if (conn->service_name)
++		add_tag2(pack, conn->service_name);
+ 
+ 	if (conn->relay_sid)
+ 		add_tag2(pack, conn->relay_sid);
