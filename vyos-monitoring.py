@@ -46,7 +46,6 @@ config = ConfigTreeQuery()
 for service in services:
     if config.exists(service):
         conf_services[services[service]] = 0
-        #print(services[service][1])
 
 for conf_service in conf_services:
     status = 0 
