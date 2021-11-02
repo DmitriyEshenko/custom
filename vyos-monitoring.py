@@ -16,10 +16,9 @@
 
 
 import time 
-#from vyos.config import Config
 from vyos.configquery import ConfigTreeQuery
 from vyos.util import is_systemd_service_running, process_named_running
-from psutil import process_iter
+
 # Availible services and prouceses
 # 1 - service
 # 2 - process
